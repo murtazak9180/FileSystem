@@ -8,9 +8,6 @@
 // TODO: findfreeblock()
 int add_entry(const char *name, size_t size, int isDir,
               struct directory_entry *dirTable) {
-  struct directory_entry *de;
-  char ch;
-  int count = 0;
   if (!name) {
     perror("add_entry(): Name is empty");
     return -1;
