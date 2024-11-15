@@ -57,7 +57,7 @@ struct directory_entry *search_entry(const char *name,
 int delete_entry(const char *name, struct directory_entry *dirTable) {
   struct directory_entry *de;
   if (!name || name[0] == '\0') {
-    perror("search_entry(): Name is NULL\n");
+    perror("delete_entry(): Name is NULL\n");
     return -1;
   }
   if ((de = search_entry(name, dirTable)) == NULL) {
@@ -72,4 +72,31 @@ int delete_entry(const char *name, struct directory_entry *dirTable) {
   de->isTaken = 0;
 
   return 0;
+}
+
+int get_first_block(const char*name,struct directory_entry *dirTable){
+  struct directory_entry *de;
+  if (!name || name[0] == '\0') {
+    perror("get_first_block(): Name is NULL\n");
+    return -1;
+  }
+  if ((de = search_entry(name, dirTable)) == NULL) {
+    perror("get_first_block(): Entry does not exist");
+    return -2;
+  }
+  return de->firstBlock;
+
+}
+
+int is_directory(const char* name,struct directory_entry *dirTable){
+  struct directory_entry *de;
+  if (!name || name[0] == '\0') {
+    perror("is_directory(): Name is NULL\n");
+    return -1;
+  }
+  if ((de = search_entry(name, dirTable)) == NULL) {
+    perror("is_directory(): Entry does not exist");
+    return -2;
+  }
+  return de->isDir;
 }
