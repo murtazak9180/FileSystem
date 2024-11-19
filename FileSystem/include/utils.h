@@ -5,6 +5,7 @@
 #define BLOCK_SIZE 1024
 #define MAX_FILE_NAME_SIZE 64
 #define DIR_ENTERIES 128
+#define MAX_BLOCKS 65536
 
 
 #endif
