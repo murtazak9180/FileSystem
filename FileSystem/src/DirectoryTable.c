@@ -13,33 +13,33 @@
 int add_entry(const char **names, const int numEnteries, size_t size, int isDir,
               struct directory_entry *dirTable) {
   if (!names || !names[0]) {
-    perror("add_entry(): Name is empty");
+    perror(RED"add_entry(): Name is empty");
     return -1;
   }
   if (numEnteries <= 0) {
-    perror("add_entry(): Invalid numEnteries");
+    perror(RED"add_entry(): Invalid numEnteries");
     return -6;
   }
 
   if (size > MAX_FILE_SIZE) {
-    perror("add_entry(): Size exceeds max file size");
+    perror(RED"add_entry(): Size exceeds max file size");
     return -2;
   }
   if (strlen(names[numEnteries - 1]) >
       MAX_FILE_NAME_SIZE - 1) { // check if the last component in the path
                                 // voilates the size limits.
-    perror("add_entry(): Max file name size exceeded");
+    perror(RED"add_entry(): Max file name size exceeded");
     return -5;
   }
 
   if (search_entry(names, isDir, dirTable) != NULL) {
-    perror("add_entry(): File/Directory already exists ");
+    perror(RED"add_entry(): File/Directory already exists ");
     return -3;
   }
   if (numEnteries > 1) { // i.e not in the root directory
     const char **temp = malloc(sizeof(char *) * (numEnteries - 1));
     if (!temp) {
-      perror("add_entry(): Memory allocation failed for temp");
+      perror(RED"add_entry(): Memory allocation failed for temp");
       return -7;
     }
 
@@ -50,7 +50,7 @@ int add_entry(const char **names, const int numEnteries, size_t size, int isDir,
 
     // Ensure the parent directory exists
     if (search_entry(temp, 1, dirTable) == NULL) {
-      perror("add_entry(): Invalid parent directory");
+      perror(RED"add_entry(): Invalid parent directory");
       free(temp);
       return -4;
     }
@@ -85,14 +85,14 @@ int add_entry(const char **names, const int numEnteries, size_t size, int isDir,
     }
   }
 
-  perror("add_entry(): No free space in directory table");
+  perror(RED"add_entry(): No free space in directory table");
   return -4;
 }
 
 struct directory_entry *search_entry(const char **names, int isDir,
                                      struct directory_entry *dirTable) {
   if (!names || !names[0]) {
-    perror("search_entry(): Path components are NULL or empty");
+    perror(RED"search_entry(): Path components are NULL or empty");
     return NULL;
   }
 
@@ -113,18 +113,18 @@ struct directory_entry *search_entry(const char **names, int isDir,
     }
 
     if (!next) {
-      perror("search_entry(): Component not found in the path");
+      perror(RED"search_entry(): Component not found in the path");
       return NULL;
     }
 
     // If this is the last component, verify its type (file or directory)
     if (!names[i + 1]) {
       if (isDir && !next->isDir) {
-        perror("search_entry(): Target is not a directory");
+        perror(RED"search_entry(): Target is not a directory");
         return NULL;
       }
       if (!isDir && next->isDir) {
-        perror("search_entry(): Target is not a file");
+        perror(RED"search_entry(): Target is not a file");
         return NULL;
       }
       return next;
@@ -132,37 +132,37 @@ struct directory_entry *search_entry(const char **names, int isDir,
 
     // Ensure intermediate components are directories
     if (!next->isDir) {
-      perror("search_entry(): Intermediate path component is not a directory");
+      perror(RED"search_entry(): Intermediate path component is not a directory");
       return NULL;
     }
 
     current = next; 
   }
 
-  perror("search_entry(): Unexpected error");
+  perror(RED"search_entry(): Unexpected error");
   return NULL;
 }
 
 int delete_entry(const char **names,const int numEnteries,int isDir, struct directory_entry *dirTable) {
   struct directory_entry *de;  
   if (!names || !names[0]) {
-    perror("delete_entry(): Names is NULL\n");
+    perror(RED"delete_entry(): Names is NULL\n");
     return -1;
   }
 
   if(numEnteries<= 0){
-    perror("delete_entry(): Invalid numEnteries");
+    perror(RED"delete_entry(): Invalid numEnteries");
     return -2; 
   }
   
   if((de=search_entry(names, isDir, dirTable)) == NULL){
-    perror("delete_entry(): Invalid Path");
+    perror(RED"delete_entry(): Invalid Path");
     return -3; 
   }
   if(isDir){   //if it is a directory, it cannot be deleted if it is a parent directory of any component
     for(int i = 0; i<DIR_ENTERIES; i++){
       if(strncmp(dirTable[i].parentDir,names[numEnteries-1], MAX_FILE_NAME_SIZE -1) == 0){
-       perror("delete_entry():The given directory has children components, CANNOT BE DELETED.");
+       perror(RED"delete_entry():The given directory has children components, CANNOT BE DELETED.");
        return -4;
       }
     }
@@ -181,25 +181,13 @@ int delete_entry(const char **names,const int numEnteries,int isDir, struct dire
 int get_first_block(const char **names,struct directory_entry *dirTable) {
   struct directory_entry *de;
   if (!names || names[0]) {
-    perror("get_first_block(): Name is NULL\n");
+    perror(RED"get_first_block(): Name is NULL\n");
     return -1;
   }
   if ((de = search_entry(names,0, dirTable)) == NULL) {  //no block assigned to a directory
-    perror("get_first_block(): Entry does not exist");
+    perror(RED"get_first_block(): Entry does not exist");
     return -2;
   }
   return de->firstBlock;
 }
 
-int is_directory(const char *name, struct directory_entry *dirTable) {
-  struct directory_entry *de;
-  if (!name || name[0] == '\0') {
-    perror("is_directory(): Name is NULL\n");
-    return -1;
-  }
-  if ((de = search_entry(name, dirTable)) == NULL) {
-    perror("is_directory(): Entry does not exist");
-    return -2;
-  }
-  return de->isDir;
-}

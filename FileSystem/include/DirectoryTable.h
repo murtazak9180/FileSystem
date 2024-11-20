@@ -17,10 +17,14 @@ struct directory_entry{
   int isTaken;
 };
 
+int init_dir_table(struct directory_entry* dirTable);
+
 int add_entry(const char **names,const int numEnteries, size_t size, int isDir, struct directory_entry *dirTable);
 struct directory_entry *search_entry(const char **names, int isDir,struct directory_entry *dirTable);
 int delete_entry(const char **names,const int numEnteries,int isDir, struct directory_entry *dirTable);
 int get_first_block(const char **names,struct directory_entry *dirTable);
 
+int save_dir_table(struct directory_entry *dirTable);
+int load_dir_table(struct directory_entry *dirTable);
 
 #endif
