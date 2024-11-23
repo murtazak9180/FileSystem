@@ -4,10 +4,19 @@
 #include <stdlib.h>
 
 #define MAX_FILE_SIZE 131072  //128 blocks * blocksize 
-#define BLOCK_SIZE 1024
+#define BLOCK_SIZE 30//1024
 #define MAX_FILE_NAME_SIZE 64
 #define DIR_ENTERIES 128
-#define MAX_BLOCKS 65536
+#define MAX_BLOCKS 10//65536
+#define MAKE_DIR "mkdir"
+#define MAKE_FILE "touch"
+#define DELETE_DIR "rmdir"
+#define DELETE_FILE "rm"
+#define LIST "ls"
+#define READ_FILE "cat"
+#define WRITE_FILE "write"
+#define TRUNCATE_FILE "truncate"
+
 
 
 #define RESET	"\x1b[0m"
@@ -21,5 +30,6 @@
 
 
 int get_num_blocks(size_t size);
+char *construct_path(char **names, int count, int isDir);
 
 #endif

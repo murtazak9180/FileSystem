@@ -2,18 +2,19 @@
 #include <stdlib.h>
 
 #include "../include/FAT.h"
+#include "../include/global.h"
 #include "../include/utils.h"
 
-int init_fat(struct fat_entry *fat){
-  if(!fat){
-    perror(RED"init_fat(): fat is null");
-    return -1; 
+int init_fat(struct fat_entry *fat, int* numFreeBlocks, int* freeBlocksHead) {
+  if (!fat) {
+    perror(RED "init_fat(): fat is null");
+    return -1;
   }
-  for(int i =0; i<MAX_BLOCKS; i++){
-     fat[i].isTaken = DEFAULT_ISTAKEN;
-     fat[i].next = BLOCK_EMPTY;
+  for (int i = 0; i < MAX_BLOCKS; i++) {
+    fat[i].isTaken = DEFAULT_ISTAKEN;
   }
-  return 0; 
+  make_free_chain(freeBlocksHead, numFreeBlocks, fat);
+  return 0;
 }
 
 int add_entry_to_fat(int index, int blockNo, struct fat_entry *fatTbl) {
@@ -104,8 +105,13 @@ int get_nth_block(int head, int n, struct fat_entry *fatTbl) {
   return -4;
 }
 
-int free_fat_enteries(int head, struct fat_entry *fatTbl) {
-  int current, next;
+
+//after freeing, update the freeBlocks chain and 
+//update the numFreeBlocks
+//update the freeBlocksHead
+int free_fat_enteries(int head, struct fat_entry *fatTbl, int* freeBlocksHead, int* numFreeBlocks) {
+  int current, next, blockCount, hd;
+  blockCount = get_block_count(head, fatTbl);
   if (!fatTbl) {
     perror(RED "get_nth_block(): Fat Table not allocated");
     return -1;
@@ -121,7 +127,14 @@ int free_fat_enteries(int head, struct fat_entry *fatTbl) {
     fatTbl[current].isTaken = 0;
     current = next;
   }
+  if((hd = make_free_chain(freeBlocksHead, numFreeBlocks, fatTbl)) < 0){
+    perror(RED"free_fat_enteries(): could not build free chain"RESET);
+    return -3;
+  }
+  
+
   return 0;
+
 }
 
 int get_block_count(int head, struct fat_entry *fatTbl) {
@@ -193,9 +206,169 @@ int can_accomodate_n_blocks(int n, int *idx, struct fat_entry *fatTbl) {
   return -4;
 }
 
-int reserve_blocks_for_n_size(size_t size, struct fat_entry *fatTbl) {
-  int numBlocks, head;
-  int *idx;
+// int reserve_blocks_for_n_size(size_t size, struct fat_entry *fatTbl) {
+//   int numBlocks, head;
+//   int *idx;
+//   if (size <= 0 || size > MAX_FILE_SIZE) {
+//     fprintf(stderr, RED "reserve_blocks_for_n_size(): Invalid size (%zu)\n",
+//             size);
+//     return -1;
+//   }
+//   if (!fatTbl) {
+//     perror(RED "reserve_blocks_for_n_size(): Invalid fatTbl");
+//     return -2;
+//   }
+//   if ((numBlocks = get_num_blocks(size)) < 0) {
+//     fprintf(stderr,
+//             RED "reserve_blocks_for_n_size(): Failed to calculate numBlocks "
+//                 "for size (%zu)\n",
+//             size);
+//     return -3;
+//   }
+
+//   if ((idx = malloc(sizeof(int) * numBlocks)) == NULL) {
+//     perror(RED "reserve_blocks_for_n_size(): malloc()");
+//     return -4;
+//   }
+//   if (can_accomodate_n_blocks(numBlocks, idx, fatTbl) < 0) {
+//     fprintf(stderr,
+//             RED "reserve_blocks_for_n_size(): Cannot reserve %d blocks\n",
+//             numBlocks);
+//     return -5;
+//   }
+
+//   // idx[0] will be at the firstBlock entry in the directory table
+//   // from idx[1] onwards, we need to populate FAT.
+//   for (int i = 0; i < numBlocks - 1;
+//        i++) { // we will fill the next the last block with LAST_BLOCK hence
+//               // numBlocks - 1
+//     fatTbl[idx[i]].next = idx[i + 1];
+//     fatTbl[idx[i]].isTaken = 1;
+//   }
+//   fatTbl[idx[numBlocks - 1]].next = LAST_BLOCK;
+//   fatTbl[idx[numBlocks - 1]].isTaken = 1;
+//   head = idx[0];
+//   free(idx);
+//   return head; // return the head for directory table.
+// }
+
+// int can_accomodate_n_size(size_t size, struct fat_entry *fatTbl) {
+
+//   if (size <= 0 || size > MAX_FILE_SIZE) {
+//     fprintf(stderr,
+//             RED "can_accomodate_n_size(): Invalid size (%zu). Must be between
+//             "
+//                 "1 and %d.\n",
+//             size, MAX_FILE_SIZE);
+//     return -1;
+//   }
+
+//   if (!fatTbl) {
+//     perror(RED "can_accomodate_n_size(): Invalid fatTbl");
+//     return -2;
+//   }
+
+//   int requiredBlocks = get_num_blocks(size);
+//   if (requiredBlocks <= 0) {
+//     fprintf(stderr,
+//             RED "can_accomodate_n_size(): Failed to calculate required blocks
+//             "
+//                 "for size (%zu).\n",
+//             size);
+//     return -3;
+//   }
+//   int freeBlocks = 0;
+
+//   // Count the number of free blocks in FAT
+//   for (int i = 0; i < MAX_BLOCKS; i++) {
+//     if (!fatTbl[i].isTaken) {
+//       freeBlocks++;
+//       if (freeBlocks >= requiredBlocks) {
+//         return 0;
+//       }
+//     }
+//   }
+
+//   fprintf(stderr,
+//           RED
+//           "can_accomodate_n_size(): Only %d free blocks available, need
+//           %d.\n", freeBlocks, requiredBlocks);
+//   return -4;
+// }
+
+int can_accomodate_n_size(size_t size, int *numFreeBlocks,
+                          struct fat_entry *fatTbl) {
+  if (size <= 0 || size > MAX_FILE_SIZE) {
+    fprintf(stderr,
+            RED "can_accomodate_n_size(): Invalid size (%zu). Must be between "
+                "1 and %d.\n",
+            size, MAX_FILE_SIZE);
+    return -1;
+  }
+  if (!fatTbl) {
+    perror(RED "can_accomodate_n_size(): Invalid fatTbl");
+    return -2;
+  }
+  if (!numFreeBlocks) {
+    perror(RED "can_accomodate_n_size(): numFreeBlocks null");
+    return -3;
+  }
+
+  int requiredBlocks = get_num_blocks(size);
+  if (requiredBlocks <= 0) {
+    fprintf(stderr,
+            RED "can_accomodate_n_size(): Failed to calculate required blocks "
+                "for size (%zu).\n",
+            size);
+    return -4;
+  }
+
+  return (requiredBlocks < *numFreeBlocks) ? 0 : -5;
+}
+int make_free_chain(int *freeBlocksHead, int *numFreeBlocks,
+                    struct fat_entry *fatTbl) {
+  int free = 0;
+  int prev = -1;
+  int isHead = 1;
+  int temp = *freeBlocksHead;
+  
+  *freeBlocksHead = NO_FREE_BLOCKS;
+  if (!fatTbl) {
+    perror(RED "make_free_chain(): fatTbl null");
+    *freeBlocksHead = temp; 
+    return -1;
+  }
+  for (int i = 0; i < MAX_BLOCKS; i++) {
+    if (!fatTbl[i].isTaken && fatTbl[i].next != LAST_BLOCK) {
+      free++;
+      if (prev != -1) {
+        fatTbl[prev].next = i;
+      }
+      if (isHead) {
+        *freeBlocksHead = i;
+        isHead = 0;
+      }
+      prev = i;
+    }
+  }
+  if (prev != -1) {
+    fatTbl[prev].next = FREE_BLOCKS_END;
+  }
+
+  if (free == 0) {
+    perror("make_free_chain(): no free blocks");
+    *freeBlocksHead = NO_FREE_BLOCKS;
+  }
+  *numFreeBlocks = free;
+  return 0;
+}
+
+
+//TEST!
+int reserve_blocks_for_n_size(size_t size, int *numFreeBlocks,
+                              int *freeBlocksHead, struct fat_entry *fatTbl) {
+  int reqBlocks, head;
+  int count = 1;
   if (size <= 0 || size > MAX_FILE_SIZE) {
     fprintf(stderr, RED "reserve_blocks_for_n_size(): Invalid size (%zu)\n",
             size);
@@ -205,77 +378,49 @@ int reserve_blocks_for_n_size(size_t size, struct fat_entry *fatTbl) {
     perror(RED "reserve_blocks_for_n_size(): Invalid fatTbl");
     return -2;
   }
-  if ((numBlocks = get_num_blocks(size)) < 0) {
-    fprintf(stderr,
-            RED "reserve_blocks_for_n_size(): Failed to calculate numBlocks "
-                "for size (%zu)\n",
-            size);
+  if (!numFreeBlocks || !freeBlocksHead) {
+    perror(RED "reserve_blocks_for_n_size(): Inavlid head or numFreeBlocks");
     return -3;
   }
 
-  if ((idx = malloc(sizeof(int) * numBlocks)) == NULL) {
-    perror(RED "reserve_blocks_for_n_size(): malloc()");
+  if (can_accomodate_n_size(size, numFreeBlocks, fatTbl) < 0) {
+    perror(RED
+           "reserve_blocks_for_n_size(): cannot accomodate the required size");
     return -4;
   }
-  if (can_accomodate_n_blocks(numBlocks, idx, fatTbl) < 0) {
-    fprintf(stderr,
-            RED "reserve_blocks_for_n_size(): Cannot reserve %d blocks\n",
-            numBlocks);
+  reqBlocks = get_num_blocks(size);
+  if (reqBlocks < 0) {
+    perror(RED "reserve_blocks_for_n_size(): get_num_blocks()");
     return -5;
   }
+  head = *freeBlocksHead;
 
-  // idx[0] will be at the firstBlock entry in the directory table
-  // from idx[1] onwards, we need to populate FAT.
-  for (int i = 0; i < numBlocks - 1;
-       i++) { // we will fill the next the last block with LAST_BLOCK hence
-              // numBlocks - 1
-    fatTbl[idx[i]].next = idx[i + 1];
-    fatTbl[idx[i]].isTaken = 1;
+  *numFreeBlocks = *numFreeBlocks - reqBlocks;
+  for (int i = head; count <= reqBlocks;
+       count++) { // TODO: correct the logic. Also put the last block as
+                  // LAST_BLOCK.
+
+    if (i >=
+        0) { // Also mark the blocks as is taken! Return head(the current head)
+      *freeBlocksHead = fatTbl[i].next;
+      if (count <= reqBlocks) {
+        fatTbl[i].isTaken = 1;
+      }
+      if (count == reqBlocks) {
+        fatTbl[i].next = LAST_BLOCK;
+      }
+      i = fatTbl[i].next;
+    } 
   }
-  fatTbl[idx[numBlocks - 1]].next = LAST_BLOCK;
-  fatTbl[idx[numBlocks - 1]].isTaken = 1;
-  head = idx[0];
-  free(idx);
-  return head; // return the head for directory table.
+  return head; 
 }
 
-int can_accomodate_n_size(size_t size, struct fat_entry *fatTbl) {
-  if (size <= 0 || size > MAX_FILE_SIZE) {
-    fprintf(stderr,
-            RED "can_accomodate_n_size(): Invalid size (%zu). Must be between "
-                "1 and %d.\n",
-            size, MAX_FILE_SIZE);
-    return -1;
-  }
+void printFatTable(struct fat_entry* fat) {
+    printf("\nFAT Table:\n");
+    printf("| Index | Next | IsTaken |\n");
+    printf("|-------|------|---------|\n");
 
-  if (!fatTbl) {
-    perror(RED "can_accomodate_n_size(): Invalid fatTbl");
-    return -2;
-  }
-
-  int requiredBlocks = get_num_blocks(size);
-  if (requiredBlocks <= 0) {
-    fprintf(stderr,
-            RED "can_accomodate_n_size(): Failed to calculate required blocks "
-                "for size (%zu).\n",
-            size);
-    return -3;
-  }
-  int freeBlocks = 0;
-
-  // Count the number of free blocks in FAT
-  for (int i = 0; i < MAX_BLOCKS; i++) {
-    if (!fatTbl[i].isTaken) {
-      freeBlocks++;
-      if (freeBlocks >= requiredBlocks) {
-        return 0; 
-      }
+    for (int i = 0; i < MAX_BLOCKS; i++) {
+        printf("| %-5d | %-4d | %-7d |\n", i, fat[i].next, fat[i].isTaken);
     }
-  }
-
-  fprintf(stderr,
-          RED
-          "can_accomodate_n_size(): Only %d free blocks available, need %d.\n",
-          freeBlocks, requiredBlocks);
-  return -4; 
 }
