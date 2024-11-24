@@ -4,6 +4,8 @@
 #include "../include/FAT.h"
 #include "../include/global.h"
 #include "../include/utils.h"
+#include "../include/DirectoryTable.h"
+
 
 int init_fat(struct fat_entry *fat, int* numFreeBlocks, int* freeBlocksHead) {
   if (!fat) {
@@ -298,7 +300,10 @@ int can_accomodate_n_blocks(int n, int *idx, struct fat_entry *fatTbl) {
 
 int can_accomodate_n_size(size_t size, int *numFreeBlocks,
                           struct fat_entry *fatTbl) {
-  if (size <= 0 || size > MAX_FILE_SIZE) {
+  if(size == 0){
+    return 0; //trivially true
+  }
+  if (size < 0 || size > MAX_FILE_SIZE) {
     fprintf(stderr,
             RED "can_accomodate_n_size(): Invalid size (%zu). Must be between "
                 "1 and %d.\n",
@@ -369,10 +374,13 @@ int reserve_blocks_for_n_size(size_t size, int *numFreeBlocks,
                               int *freeBlocksHead, struct fat_entry *fatTbl) {
   int reqBlocks, head;
   int count = 1;
-  if (size <= 0 || size > MAX_FILE_SIZE) {
+  if(size == 0){
+    return DEFAULT_FIRST_BLOCK;
+  }
+  if (size < 0 || size > MAX_FILE_SIZE) {
     fprintf(stderr, RED "reserve_blocks_for_n_size(): Invalid size (%zu)\n",
             size);
-    return -1;
+    return -2;
   }
   if (!fatTbl) {
     perror(RED "reserve_blocks_for_n_size(): Invalid fatTbl");

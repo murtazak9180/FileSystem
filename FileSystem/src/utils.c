@@ -10,6 +10,9 @@ int get_num_blocks(size_t size) {
         perror(RED"get_num_blocks():Size larger than system can accomodate.");
         return -1;
     }
+    if(size == 0){
+        return 0;
+    }
     return (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 }
 

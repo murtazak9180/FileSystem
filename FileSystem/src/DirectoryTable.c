@@ -97,9 +97,9 @@ int add_entry(char **names, const int numEnteries, size_t size, int isDir,
         dirTable[i].firstBlock = -1;
       } else {
         if ((head = reserve_blocks_for_n_size(size, numFreeBlocks,
-                                              freeBlocksHead, fat)) < 0) {
-          fprintf(stderr, RED "add_entry(): could not return a valid head");
-          return -9;
+                                              freeBlocksHead, fat)) < 0 && head!= DEFAULT_FIRST_BLOCK) {
+            fprintf(stderr, RED "add_entry(): could not return a valid head");
+            return -9;
         } else {
           dirTable[i].firstBlock = head;
         }
