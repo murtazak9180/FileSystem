@@ -2,6 +2,7 @@
 #define DIRECTORYTABLE_H
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "FAT.h"
 #include "utils.h"
@@ -35,8 +36,9 @@ int search_entry(char **names, int numEnteries,int isDir,struct HashMap** map);
 int delete_entry(char **names, const int numEnteries, int isDir,struct directory_entry *dirTable, struct HashMap**map);
 int get_first_block(char **names, int numEnteries,struct directory_entry *dirTable, struct HashMap** map);
 void printDirectoryTable(struct directory_entry* dirTable);
+int get_children(int idx, char ***children,int *count, struct directory_entry* dirTable);
 
-int save_dir_table(struct directory_entry *dirTable);
-int load_dir_table(struct directory_entry *dirTable);
+ssize_t save_dir_table(struct directory_entry *dirTable, int fd, off_t offset);
+int load_dir_table(struct directory_entry *dirTable, int fd, off_t offset);
 
 #endif

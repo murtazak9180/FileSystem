@@ -1,13 +1,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "hashmap.h"
 #include <stdlib.h>
 
 #define MAX_FILE_SIZE 131072  //128 blocks * blocksize 
-#define BLOCK_SIZE 30//1024
+#define BLOCK_SIZE 1024
 #define MAX_FILE_NAME_SIZE 64
 #define DIR_ENTERIES 128
-#define MAX_BLOCKS 10//65536
+#define MAX_BLOCKS 65536
 #define MAKE_DIR "mkdir"
 #define MAKE_FILE "touch"
 #define DELETE_DIR "rmdir"
@@ -15,7 +16,7 @@
 #define LIST "ls"
 #define READ_FILE "cat"
 #define WRITE_FILE "write"
-#define TRUNCATE_FILE "truncate"
+#define TRUNCATE_FILE "trun"
 
 
 
@@ -31,5 +32,7 @@
 
 int get_num_blocks(size_t size);
 char *construct_path(char **names, int count, int isDir);
+void printDirectory(const char* parentDirectory, char** children, int numChildren, int depth); 
+int num_metadata_blks_req();  //fat and gdt are fixed size so no need to pass them. 
 
 #endif

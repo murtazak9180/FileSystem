@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../include/DirectoryTable.h"
 #include "../include/FAT.h"
@@ -97,9 +98,10 @@ int add_entry(char **names, const int numEnteries, size_t size, int isDir,
         dirTable[i].firstBlock = -1;
       } else {
         if ((head = reserve_blocks_for_n_size(size, numFreeBlocks,
-                                              freeBlocksHead, fat)) < 0 && head!= DEFAULT_FIRST_BLOCK) {
-            fprintf(stderr, RED "add_entry(): could not return a valid head");
-            return -9;
+                                              freeBlocksHead, fat)) < 0 &&
+            head != DEFAULT_FIRST_BLOCK) {
+          fprintf(stderr, RED "add_entry(): could not return a valid head");
+          return -9;
         } else {
           dirTable[i].firstBlock = head;
         }
@@ -132,63 +134,6 @@ int add_entry(char **names, const int numEnteries, size_t size, int isDir,
   perror(RED "add_entry(): No free space in directory table");
   return -10;
 }
-
-// struct directory_entry *search_entry(const char **names, int isDir,
-//                                      struct directory_entry *dirTable) {
-//   if (!names || !names[0]) {
-//     perror(RED "search_entry(): Path components are NULL or empty");
-//     return NULL;
-//   }
-
-//   struct directory_entry *current = NULL;
-
-//   for (int i = 0; names[i]; i++) {
-//     const char *currentName = names[i];
-//     const char *parentDir = (i > 0) ? current->name : ROOT_DIR;
-
-//     // Search for the current component in the directory table
-//     struct directory_entry *next = NULL;
-//     for (int j = 0; j < DIR_ENTERIES; j++) {
-//       if (dirTable[j].isTaken && strcmp(dirTable[j].name, currentName) == 0
-//       &&
-//           strcmp(dirTable[j].parentDir, parentDir) == 0) {
-//         next = &dirTable[j];
-//         break;
-//       }
-//     }
-
-//     if (!next) {
-//       perror(RED "search_entry(): Component not found in the path");
-//       return NULL;
-//     }
-
-//     // If this is the last component, verify its type (file or directory)
-//     if (!names[i + 1]) {
-//       if (isDir && !next->isDir) {
-//         perror(RED "search_entry(): Target is not a directory");
-//         return NULL;
-//       }
-//       if (!isDir && next->isDir) {
-//         perror(RED "search_entry(): Target is not a file");
-//         return NULL;
-//       }
-//       return next;
-//     }
-
-//     // Ensure intermediate components are directories
-//     if (!next->isDir) {
-//       perror(RED
-//              "search_entry(): Intermediate path component is not a
-//              directory");
-//       return NULL;
-//     }
-
-//     current = next;
-//   }
-
-//   perror(RED "search_entry(): Unexpected error");
-//   return NULL;
-// }
 
 int search_entry(char **names, int numEnteries, int isDir,
                  struct HashMap **map) {
@@ -301,4 +246,155 @@ void printDirectoryTable(struct directory_entry *dirTable) {
            dirTable[i].name, dirTable[i].parentIdx, dirTable[i].size,
            dirTable[i].firstBlock, dirTable[i].isDir, dirTable[i].isTaken);
   }
+}
+
+int get_children(int idx, char ***children, int *count,
+                 struct directory_entry *dirTable) {
+  *count = 0;
+  if ((idx < 0 || idx > DIR_ENTERIES) && idx != DEFAULT_PARENT) {
+    perror(RED "get_children(): invalid idx" RESET);
+    return -1;
+  }
+  if (!dirTable) {
+    perror(RED "get_children(): null dirTable" RESET);
+    return -2;
+  }
+  if (!*children || !*children[0]) {
+    perror(RED "get_children(): null children" RESET);
+    return -3;
+  }
+
+  for (int i = 0; i < DIR_ENTERIES; i++) {
+    if (dirTable[i].parentIdx == idx && dirTable[i].isTaken) {
+      memcpy((*children)[*count], dirTable[i].name, MAX_FILE_NAME_SIZE);
+      (*count)++;
+    }
+  }
+  return 0;
+}
+ssize_t save_dir_table(struct directory_entry *dirTable, int fd, off_t offset) {
+  ssize_t bytesWritten = 0;
+  ssize_t totalBytes = 0;
+
+  if (!dirTable) {
+    perror(RED "save_dir_table(): dirTable is null" RESET);
+    return -1;
+  }
+
+  for (int i = 0; i < DIR_ENTERIES; i++) {
+    // Write each field individually
+    bytesWritten = pwrite(fd, dirTable[i].name, MAX_FILE_NAME_SIZE, offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for name" RESET);
+      return -1;
+    }
+    if ((size_t)bytesWritten != MAX_FILE_NAME_SIZE) {
+      fprintf(stderr, RED "save_dir_table(): incomplete write for name" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += MAX_FILE_NAME_SIZE;
+
+    bytesWritten = pwrite(fd, &dirTable[i].parentIdx, sizeof(int), offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for parentIdx" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += sizeof(int);
+
+    bytesWritten = pwrite(fd, &dirTable[i].size, sizeof(size_t), offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for size" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += sizeof(size_t);
+
+    bytesWritten = pwrite(fd, &dirTable[i].firstBlock, sizeof(int), offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for firstBlock" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += sizeof(int);
+
+    bytesWritten = pwrite(fd, &dirTable[i].isDir, sizeof(int), offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for isDir" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += sizeof(int);
+
+    bytesWritten = pwrite(fd, &dirTable[i].isTaken, sizeof(int), offset);
+    if (bytesWritten < 0) {
+      perror(RED "save_dir_table(): write failed for isTaken" RESET);
+      return -1;
+    }
+    totalBytes += bytesWritten;
+    offset += sizeof(int);
+  }
+
+  return totalBytes;
+}
+
+int load_dir_table(struct directory_entry *dirTable, int fd, off_t offset) {
+  ssize_t bytesRead = 0;
+
+  if (!dirTable) {
+    perror(RED "load_dir_table(): dirTable is null" RESET);
+    return -1;
+  }
+
+  for (int i = 0; i < DIR_ENTERIES; i++) {
+    // Read each field individually
+    bytesRead = pread(fd, dirTable[i].name, MAX_FILE_NAME_SIZE, offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for name" RESET);
+      return -1;
+    }
+    if ((size_t)bytesRead != MAX_FILE_NAME_SIZE) {
+      fprintf(stderr, RED "load_dir_table(): incomplete read for name" RESET);
+      return -1;
+    }
+    offset += MAX_FILE_NAME_SIZE;
+
+    bytesRead = pread(fd, &dirTable[i].parentIdx, sizeof(int), offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for parentIdx" RESET);
+      return -1;
+    }
+    offset += sizeof(int);
+
+    bytesRead = pread(fd, &dirTable[i].size, sizeof(size_t), offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for size" RESET);
+      return -1;
+    }
+    offset += sizeof(size_t);
+
+    bytesRead = pread(fd, &dirTable[i].firstBlock, sizeof(int), offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for firstBlock" RESET);
+      return -1;
+    }
+    offset += sizeof(int);
+
+    bytesRead = pread(fd, &dirTable[i].isDir, sizeof(int), offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for isDir" RESET);
+      return -1;
+    }
+    offset += sizeof(int);
+
+    bytesRead = pread(fd, &dirTable[i].isTaken, sizeof(int), offset);
+    if (bytesRead < 0) {
+      perror(RED "load_dir_table(): read failed for isTaken" RESET);
+      return -1;
+    }
+    offset += sizeof(int);
+  }
+
+  return 0;
 }

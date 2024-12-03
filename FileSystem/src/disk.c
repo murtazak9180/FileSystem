@@ -6,7 +6,7 @@
 #include "../include/disk.h"
 #include "../include/utils.h"
 
-int write_to_disk(char *buffer, size_t size, off_t offset) {
+int write_to_disk(void *buffer, size_t size, off_t offset) {
   int disk;
   int bytesWritten = 0;
   if ((disk = open(DISK_NAME, O_RDWR, O_RDWR)) < 0) {
@@ -39,35 +39,35 @@ int write_to_disk(char *buffer, size_t size, off_t offset) {
   return 0;
 }
 
-int read_from_disk(char *buffer, size_t size, off_t offset) {
+size_t read_from_disk(void *buffer, size_t size, off_t offset) {
   int disk;
-  int bytesRead = 0;
+  size_t bytesRead = -1;
   if ((disk = open(DISK_NAME, O_RDWR, O_RDWR)) < 0) {
     perror(RED "read_from_disk(): could not open disk" RESET);
-    return -1;
+    return bytesRead;
   }
   if (!buffer) {
     perror(RED "read_from_disk(): buffer is null" RESET);
     close(disk);
-    return -2;
+    return bytesRead;
   }
   if (size < 0 || size > MAX_FILE_SIZE || offset < 0 ||
       offset > MAX_BLOCKS * BLOCK_SIZE) {
     perror(RED "read_from_disk(): Invalid size or offset" RESET);
     close(disk);
-    return -3;
+    return bytesRead;
   }
   if ((bytesRead = pread(disk, buffer, size, offset)) < 0) {
     perror(RED "read_from_disk(): could not read" RESET);
     close(disk);
-    return -4;
+    return bytesRead;
   }
-  buffer[bytesRead] = '\0';
+ 
   //   if(bytesRead < size){
   //      perror(RED "read_from_disk(): bytes read are less than size" RESET);
   //   }
   close(disk);
-  return 0;
+  return bytesRead;
 }
 
 int truncate_at_offset(size_t size, off_t offset) {
